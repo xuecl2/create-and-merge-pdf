@@ -113,7 +113,7 @@ function generateHTML(data) {
     .qrcode {
       position: absolute;
       left: 20px;
-      top: 50px;
+      top: 20px;
       width: 100px;
       height: 100px;
       border: 2px solid #000;
@@ -210,15 +210,6 @@ function generateHTML(data) {
     table th {
       font-weight: normal;
       background-color: #fff;
-    }
-
-    /* 底部金额区域 */
-    .amount-section {
-      display: flex;
-      align-items: center;
-      gap: 30px;
-      margin-bottom: 15px;
-      font-size: 10pt;
     }
 
     /* 签名区域 */
@@ -341,17 +332,22 @@ function generateHTML(data) {
           <td>${data.grandTotal}</td>
           <td></td>
         </tr>
+        <tr>
+          <td colspan="3" style="text-align: left; padding-left: 10px;">
+            金额合计（大写）
+          </td>
+          <td colspan="6" style="text-align: left; padding-left: 10px;">
+            ${data.amountInWords} ¥：${data.grandTotal}
+          </td>
+          <td colspan="3" style="text-align: left; padding-left: 10px;">
+            预借金额 _________
+          </td>
+          <td colspan="3" style="text-align: left; padding-left: 10px;">
+            退/补金额_________
+          </td>
+        </tr>
       </tbody>
     </table>
-
-    <!-- 金额合计 -->
-    <div class="amount-section">
-      <span>金额合计（大写）</span>
-      <span>${data.amountInWords}</span>
-      <span>¥：${data.grandTotal}</span>
-      <span>预借金额 _________</span>
-      <span>退/补金额_________</span>
-    </div>
 
     <!-- 签名区域 -->
     <div class="signature-section">
@@ -389,7 +385,13 @@ async function generatePDF(data, outputPath) {
   try {
     browser = await playwright.chromium.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--disable-gpu'
+      ]
     });
   } catch (error) {
     console.error('启动 Chromium 失败:', error.message);
@@ -401,7 +403,10 @@ async function generatePDF(data, outputPath) {
 
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle' });
+
+    // 使用文件路径而不是 setContent
+    const fileUrl = 'file://' + path.resolve(htmlPath);
+    await page.goto(fileUrl, { waitUntil: 'networkidle' });
 
     await page.pdf({
       path: outputPath,

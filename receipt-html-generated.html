@@ -28,7 +28,7 @@
     .qrcode {
       position: absolute;
       left: 20px;
-      top: 50px;
+      top: 20px;
       width: 100px;
       height: 100px;
       border: 2px solid #000;
@@ -125,15 +125,6 @@
     table th {
       font-weight: normal;
       background-color: #fff;
-    }
-
-    /* 底部金额区域 */
-    .amount-section {
-      display: flex;
-      align-items: center;
-      gap: 30px;
-      margin-bottom: 15px;
-      font-size: 10pt;
     }
 
     /* 签名区域 */
@@ -300,17 +291,22 @@
           <td>99.00</td>
           <td></td>
         </tr>
+        <tr>
+          <td colspan="3" style="text-align: left; padding-left: 10px;">
+            金额合计（大写）
+          </td>
+          <td colspan="6" style="text-align: left; padding-left: 10px;">
+            玖拾玖元整 ¥：99.00
+          </td>
+          <td colspan="3" style="text-align: left; padding-left: 10px;">
+            预借金额 _________
+          </td>
+          <td colspan="3" style="text-align: left; padding-left: 10px;">
+            退/补金额_________
+          </td>
+        </tr>
       </tbody>
     </table>
-
-    <!-- 金额合计 -->
-    <div class="amount-section">
-      <span>金额合计（大写）</span>
-      <span>玖拾玖元整</span>
-      <span>¥：99.00</span>
-      <span>预借金额 _________</span>
-      <span>退/补金额_________</span>
-    </div>
 
     <!-- 签名区域 -->
     <div class="signature-section">

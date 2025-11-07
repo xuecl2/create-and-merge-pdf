@@ -1,6 +1,7 @@
 const jsPDF = require('jspdf').jsPDF;
 const { applyPlugin } = require('jspdf-autotable');
 const fs = require('fs');
+const QRCode = require('qrcode');
 
 // 手动应用 autoTable 插件
 applyPlugin(jsPDF);
@@ -82,6 +83,27 @@ async function generateReceipt(data, outputPath) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 15;
+  const leftMargin = 35; // 左侧留出更多空间给二维码和装订线
+
+  // 生成二维码
+  const qrData = data.qrData || `报销单-${data.date || ''}-${data.traveler || ''}`;
+  const qrCodeDataUrl = await QRCode.toDataURL(qrData, { width: 300, margin: 1 });
+
+  // 在左上角添加二维码 - 调整位置使其与标题高度一致
+  doc.addImage(qrCodeDataUrl, 'PNG', 5, 8, 25, 25);
+
+  // 左侧竖排文字（装订线）
+  doc.setFontSize(9);
+  const bindingVerticalText = data.companyName;
+  // 绘制竖排文字
+  for (let i = 0; i < bindingVerticalText.length; i++) {
+    doc.text(bindingVerticalText[i], 3, 50 + i * 5);
+  }
+  // 装订线
+  doc.setLineWidth(0.3);
+  doc.setLineDash([2, 2]);
+  doc.line(3.5, 40, 3.5, pageHeight - 40);
+  doc.setLineDash([]);
 
   // 标题
   doc.setFontSize(20);
@@ -111,12 +133,12 @@ async function generateReceipt(data, outputPath) {
   // 出差人信息行
   const infoY = margin + 20;
   doc.setFontSize(10);
-  doc.text(`出差人`, margin, infoY);
-  doc.text(`${data.traveler}`, margin + 15, infoY);
-  doc.text(`出差事由`, margin + 60, infoY);
-  doc.text(`${data.reason}`, margin + 80, infoY);
-  doc.text(`项目名称`, margin + 120, infoY);
-  doc.text(`${data.projectName}`, margin + 145, infoY);
+  doc.text(`出差人`, leftMargin, infoY);
+  doc.text(`${data.traveler}`, leftMargin + 15, infoY);
+  doc.text(`出差事由`, leftMargin + 60, infoY);
+  doc.text(`${data.reason}`, leftMargin + 80, infoY);
+  doc.text(`项目名称`, leftMargin + 120, infoY);
+  doc.text(`${data.projectName}`, leftMargin + 145, infoY);
 
   // 主表格数据
   const tableStartY = infoY + 7;
@@ -179,6 +201,13 @@ async function generateReceipt(data, outputPath) {
         '',
         data.grandTotal,
         ''
+      ],
+      // 金额合计行
+      [
+        { content: '金额合计（大写）', colSpan: 3, styles: { halign: 'left' } },
+        { content: `${data.amountInWords}  ¥：${data.grandTotal}`, colSpan: 6, styles: { halign: 'left' } },
+        { content: '预借金额 _________', colSpan: 3, styles: { halign: 'left' } },
+        { content: '退/补金额_________', colSpan: 3, styles: { halign: 'left' } }
       ]
     ],
     theme: 'grid',
@@ -212,32 +241,23 @@ async function generateReceipt(data, outputPath) {
       13: { cellWidth: 12 },
       14: { cellWidth: 10 }
     },
-    margin: { left: margin, right: margin }
+    margin: { left: leftMargin, right: margin }
   });
 
-  // 底部金额合计
-  const finalY = doc.lastAutoTable.finalY + 2;
-  doc.setFontSize(10);
-  doc.text(`金额合计`, margin, finalY);
-  doc.text(`（大写）`, margin, finalY + 5);
-  doc.text(`${data.amountInWords}`, margin + 20, finalY + 5);
-  doc.text(`¥：${data.grandTotal}`, margin + 60, finalY + 5);
-  doc.text(`预借金额 _________`, margin + 120, finalY + 5);
-  doc.text(`退/补金额_________`, margin + 170, finalY + 5);
-
   // 签名行
+  const finalY = doc.lastAutoTable.finalY + 2;
   const signY = finalY + 15;
   doc.setFontSize(9);
   const signatures = ['领导批审', '部门负责人', '财务负责人', '会计', '出纳', '领款人'];
-  const signSpacing = (pageWidth - 2 * margin) / signatures.length;
+  const signSpacing = (pageWidth - leftMargin - margin) / signatures.length;
   signatures.forEach((sign, index) => {
-    doc.text(sign, margin + index * signSpacing, signY);
+    doc.text(sign, leftMargin + index * signSpacing, signY);
   });
 
-  // 装订线
+  // 底部装订线
   doc.setFontSize(8);
   const bindingText = `----- -------${data.companyName} ---- 装订线----------`;
-  doc.text(bindingText, margin, pageHeight - 10);
+  doc.text(bindingText, leftMargin, pageHeight - 10);
 
   // 保存
   doc.save(outputPath);

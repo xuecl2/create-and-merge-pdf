@@ -1,5 +1,6 @@
 const fs = require('fs');
 const PDFDocument = require('pdfkit');
+const QRCode = require('qrcode');
 
 /**
  * 生成差旅报销单 PDF
@@ -7,7 +8,7 @@ const PDFDocument = require('pdfkit');
  * @param {string} outputPath - 输出文件路径
  */
 async function generateReceipt(data, outputPath) {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     try {
       // 创建 PDF 文档 - 使用横向 A4
       const doc = new PDFDocument({
@@ -30,31 +31,64 @@ async function generateReceipt(data, outputPath) {
 
       const pageWidth = 841.89;
       const pageHeight = 595.28;
-      const margin = 40;
+      const leftMargin = 120; // 给二维码和竖排文字留出空间
+      const rightMargin = 40;
+
+      // 生成二维码
+      const qrData = data.qrData || `报销单-${data.date || ''}-${data.traveler || ''}`;
+      const qrCodeDataUrl = await QRCode.toDataURL(qrData, { width: 100, margin: 1 });
+      const qrBuffer = Buffer.from(qrCodeDataUrl.split(',')[1], 'base64');
+
+      // 绘制左上角二维码
+      doc.image(qrBuffer, 30, 40, { width: 80, height: 80 });
+
+      // 绘制左侧竖排文字 - "差旅报销单淮安新业电力建设有限公司"
+      const verticalText = '差旅报销单淮安新业电力建设有限公司';
+      doc.fontSize(10);
+      let verticalY = 150;
+      for (let i = 0; i < verticalText.length; i++) {
+        doc.text(verticalText[i], 55, verticalY, { width: 20, align: 'center' });
+        verticalY += 20;
+      }
+
+      // 绘制虚线边框（左侧装订线）
+      doc.strokeColor('#000000')
+         .dash(5, { space: 5 })
+         .moveTo(110, 140)
+         .lineTo(110, pageHeight - 50)
+         .stroke()
+         .undash();
 
       // 绘制标题
       doc.fontSize(20)
-         .text('差 旅 报 销 单', margin, 40, { align: 'center', underline: true });
+         .text('差 旅 报 销 单', leftMargin, 40, {
+           width: pageWidth - leftMargin - rightMargin,
+           align: 'center',
+           underline: true
+         });
 
       // 绘制日期（标题下方）
       doc.fontSize(14)
-         .text(data.date || '2025年07月28日', margin, 70, { align: 'center' });
+         .text(data.date || '2025年07月28日', leftMargin, 70, {
+           width: pageWidth - leftMargin - rightMargin,
+           align: 'center'
+         });
 
       // 右上角信息
-      const rightX = pageWidth - margin - 200;
+      const rightX = pageWidth - rightMargin - 180;
       doc.fontSize(10)
-         .text(`部门：${data.department || ''}`, rightX, 40, { width: 200, align: 'left' })
-         .text(`页码：第 1 页/ 共 1 页`, rightX, 55, { width: 200, align: 'left' })
-         .text(`金额：${data.totalAmount || '0.00'}元 / ${data.totalAmount || '0.00'}元`, rightX, 70, { width: 200, align: 'left' });
+         .text(`部门：${data.department || ''}`, rightX, 40, { width: 180, align: 'left' })
+         .text(`页码：第 1 页/ 共 1 页`, rightX, 55, { width: 180, align: 'left' })
+         .text(`金额：${data.totalAmount || '0.00'}元 / ${data.totalAmount || '0.00'}元`, rightX, 70, { width: 180, align: 'left' });
 
       // 基本信息区域
       let currentY = 110;
-      const col1X = margin;
-      const col2X = margin + 80;
-      const col3X = margin + 280;
-      const col4X = margin + 360;
-      const col5X = margin + 520;
-      const col6X = margin + 600;
+      const col1X = leftMargin;
+      const col2X = leftMargin + 80;
+      const col3X = leftMargin + 280;
+      const col4X = leftMargin + 360;
+      const col5X = leftMargin + 520;
+      const col6X = leftMargin + 600;
 
       doc.fontSize(10)
          .text('出差人', col1X, currentY)
@@ -177,12 +211,15 @@ async function generateReceipt(data, outputPath) {
          .text('领款人', col1X + signatureSpacing * 5, signY, { width: 100, align: 'center' });
 
       // 绘制表格边框
-      drawTableBorders(doc, tableTop, rowHeight, trips.length);
+      drawTableBorders(doc, tableTop, rowHeight, trips.length, leftMargin, rightMargin);
 
       // 底部装订线
       doc.fontSize(9)
          .text(`----- -------${data.companyName || '淮安新业电力建设有限公司'} ---- 装订线----------`,
-               margin, pageHeight - 50, { align: 'center' });
+               leftMargin, pageHeight - 50, {
+                 width: pageWidth - leftMargin - rightMargin,
+                 align: 'center'
+               });
 
       // 完成 PDF
       doc.end();
@@ -205,38 +242,38 @@ async function generateReceipt(data, outputPath) {
 /**
  * 绘制表格边框
  */
-function drawTableBorders(doc, tableTop, rowHeight, dataRows) {
-  const margin = 40;
-  const tableWidth = 761.89 - margin * 2;
+function drawTableBorders(doc, tableTop, rowHeight, dataRows, leftMargin, rightMargin) {
+  const pageWidth = 841.89;
+  const tableWidth = pageWidth - leftMargin - rightMargin;
   const tableHeight = rowHeight * (2 + dataRows + 2); // 2行表头 + 数据行 + 合计行 + 金额合计行
 
   // 外框
-  doc.rect(margin, tableTop, tableWidth, tableHeight).stroke();
+  doc.rect(leftMargin, tableTop, tableWidth, tableHeight).stroke();
 
   // 横线
   for (let i = 1; i <= dataRows + 3; i++) {
-    doc.moveTo(margin, tableTop + rowHeight * i)
-       .lineTo(margin + tableWidth, tableTop + rowHeight * i)
+    doc.moveTo(leftMargin, tableTop + rowHeight * i)
+       .lineTo(leftMargin + tableWidth, tableTop + rowHeight * i)
        .stroke();
   }
 
   // 竖线
   const verticalLines = [50, 100, 150, 200, 240, 280, 310, 355, 400, 450, 500, 600, 650];
   verticalLines.forEach(x => {
-    doc.moveTo(margin + x, tableTop)
-       .lineTo(margin + x, tableTop + rowHeight * (dataRows + 3))
+    doc.moveTo(leftMargin + x, tableTop)
+       .lineTo(leftMargin + x, tableTop + rowHeight * (dataRows + 3))
        .stroke();
   });
 
   // 合并单元格的特殊边框（第一行表头的合并单元格）
   const mergeLines = [
-    { x: margin + 100, y1: tableTop, y2: tableTop + rowHeight },
-    { x: margin + 200, y1: tableTop, y2: tableTop + rowHeight },
-    { x: margin + 280, y1: tableTop, y2: tableTop + rowHeight * 2 },
-    { x: margin + 310, y1: tableTop, y2: tableTop + rowHeight },
-    { x: margin + 400, y1: tableTop, y2: tableTop + rowHeight },
-    { x: margin + 600, y1: tableTop, y2: tableTop + rowHeight * 2 },
-    { x: margin + 650, y1: tableTop, y2: tableTop + rowHeight * 2 }
+    { x: leftMargin + 100, y1: tableTop, y2: tableTop + rowHeight },
+    { x: leftMargin + 200, y1: tableTop, y2: tableTop + rowHeight },
+    { x: leftMargin + 280, y1: tableTop, y2: tableTop + rowHeight * 2 },
+    { x: leftMargin + 310, y1: tableTop, y2: tableTop + rowHeight },
+    { x: leftMargin + 400, y1: tableTop, y2: tableTop + rowHeight },
+    { x: leftMargin + 600, y1: tableTop, y2: tableTop + rowHeight * 2 },
+    { x: leftMargin + 650, y1: tableTop, y2: tableTop + rowHeight * 2 }
   ];
 
   mergeLines.forEach(line => {

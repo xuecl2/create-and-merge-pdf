@@ -4,8 +4,9 @@
 
 ## 功能
 
-1. ✅ 使用 pdfkit 生成差旅报销单 PDF（已完成）
-2. ✅ 将报销单和若干张发票合并成一个 PDF 文档（已完成）
+1. ✅ 使用 PDF 模板生成差旅报销单（方案1，推荐）
+2. ✅ 使用 pdfkit 代码生成报销单（方案2）
+3. ✅ 将报销单和若干张发票合并成一个 PDF 文档
 
 ## 安装
 
@@ -26,9 +27,60 @@ node demo.js
 - `demo-合并结果.pdf` - 报销单和发票的合并结果（保持原始尺寸）
 - `demo-合并结果-A4.pdf` - 报销单和发票的合并结果（统一调整为A4）
 
+## 生成报销单的3种方案
+
+### 方案1：基于PDF模板（推荐⭐⭐⭐⭐⭐）
+
+**优势**：样式精准、所见即所得、易于调整
+
+**快速开始**：
+```bash
+# 1. 查找模板坐标（首次使用）
+node find-coordinates.js
+
+# 2. 基于模板生成PDF
+node generate-receipt-template.js output.pdf
+```
+
+**详细教程**：查看 [TEMPLATE-GUIDE.md](./TEMPLATE-GUIDE.md)
+
+### 方案2：PDFKit代码生成
+
+使用代码绘制所有元素（表格、文字、边框等）
+
+### 方案3：HTML to PDF
+
+使用HTML+CSS设计，然后转换为PDF
+
+---
+
 ## 使用方法
 
-### 1. 生成报销单
+### 1. 生成报销单（方案1：推荐）
+
+使用PDF模板：
+
+```bash
+node generate-receipt-template.js [输出文件名]
+```
+
+在代码中使用：
+
+```javascript
+const { generateReceiptFromTemplate } = require('./generate-receipt-template');
+
+const data = {
+  date: '2025年07月28日',
+  department: '经营计划室',
+  totalAmount: '99.00',
+  traveler: '谢松',
+  // ... 更多字段
+};
+
+await generateReceiptFromTemplate(data, '报销单.pdf');
+```
+
+### 1b. 生成报销单（方案2：PDFKit）
 
 使用测试数据生成报销单：
 
@@ -137,14 +189,22 @@ npm run merge -- --size=A4 merged.pdf 费用报销单_2025-11-07_08-31-27.pdf �
 
 ```
 create-and-merge-pdf/
-├── generate-receipt.js       # 使用 pdfkit 生成报销单
-├── merge-pdf.js              # 使用 pdf-lib 合并 PDF（支持 A4/B4 纸张调整）
-├── check-pdf-size.js         # PDF 页面尺寸检查工具
-├── demo.js                   # 完整演示脚本
-├── package.json              # 项目配置文件
-├── README.md                 # 说明文档
+├── template.png                      # 报销单模板图片
+├── generate-receipt-template.js      # 方案1：基于模板生成报销单（推荐）
+├── find-coordinates.js               # 坐标查找辅助工具
+├── generate-receipt.js               # 方案2：使用 pdfkit 生成报销单
+├── generate-receipt-html.js          # 方案3：HTML to PDF
+├── merge-pdf.js                      # 使用 pdf-lib 合并 PDF
+├── check-pdf-size.js                 # PDF 页面尺寸检查工具
+├── demo.js                           # 完整演示脚本
+├── fonts/                            # 中文字体文件
+│   ├── NotoSansSC-Regular.ttf
+│   └── SourceHanSansCN-Normal.otf
+├── TEMPLATE-GUIDE.md                 # PDF模板方案详细教程
+├── package.json                      # 项目配置文件
+├── README.md                         # 说明文档
 ├── 费用报销单_2025-11-07_08-31-27.pdf  # 示例报销单
-└── 京东发票.pdf              # 示例发票
+└── 京东发票.pdf                      # 示例发票
 ```
 
 ## 辅助工具

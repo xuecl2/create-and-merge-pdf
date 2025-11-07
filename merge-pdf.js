@@ -39,13 +39,22 @@ async function mergePDFs(pdfPaths, outputPath, options = {}) {
       for (let i = 0; i < pdf.getPageCount(); i++) {
         const page = pdf.getPage(i);
         if (!page.node.Contents()) {
-          console.warn(`  警告: ${pdfPath} 的页 ${i + 1} 缺少内容对象，正在修复...`);
+          console.warn(`  警告: ${pdfPath} 的页 ${i + 1} 缺少内容对象`);
+          console.warn(`  这可能是pdf-lib解析问题，尝试从页面字典直接获取...`);
 
-          // 为缺少Contents的页面创建一个空的内容流
-          // 这样copyPages就能正常工作了
+          // 尝试从页面字典直接获取Contents引用
           const context = pdf.context;
-          const contentStream = context.stream('');
-          page.node.set(context.obj('Contents'), contentStream);
+          const contentsRef = page.node.get('Contents');
+
+          if (contentsRef) {
+            console.warn(`  找到Contents引用: ${contentsRef.constructor.name}`);
+            // 不需要修复，Contents引用存在
+          } else {
+            console.warn(`  确实缺少Contents，创建空内容流...`);
+            // 为缺少Contents的页面创建一个空的内容流
+            const contentStream = context.stream('');
+            page.node.set(context.obj('Contents'), contentStream);
+          }
         }
       }
 

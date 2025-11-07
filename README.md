@@ -163,6 +163,30 @@ node check-pdf-size.js <PDF1> [PDF2] [PDF3] ...
 node check-pdf-size.js 费用报销单_2025-11-07_08-31-27.pdf 京东发票.pdf
 ```
 
+### PDF 兼容性修复工具
+
+如果遇到某些 PDF 文件无法正确合并（第二页为空）的问题，可以使用 qpdf 工具修复：
+
+```bash
+# 安装 qpdf（如果尚未安装）
+sudo apt-get install qpdf
+
+# 使用修复脚本
+./fix-pdf-for-merge.sh input.pdf [output.pdf]
+```
+
+**原因说明**：某些 PDF 生成器创建的文件可能使用了 pdf-lib 无法正确解析的内部结构。使用 qpdf 重新处理后，pdf-lib 就能正常读取了。
+
+### PDF 内容检查工具
+
+检查 PDF 文件是否包含实际内容：
+
+```bash
+node check-content-stream.js <PDF文件>
+```
+
+这个工具可以帮助你诊断 PDF 文件是否真的有内容，还是只是一个空白页面。
+
 输出示例：
 
 ```

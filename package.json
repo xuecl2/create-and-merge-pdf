@@ -1,0 +1,21 @@
+{
+  "name": "create-and-merge-pdf",
+  "version": "1.0.0",
+  "description": "生成指定样式的PDF并合并报销单和发票",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "merge": "node merge-pdf.js"
+  },
+  "keywords": [
+    "pdf",
+    "merge",
+    "invoice",
+    "receipt"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "pdf-lib": "^1.17.1"
+  }
+}

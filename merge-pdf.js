@@ -35,6 +35,20 @@ async function mergePDFs(pdfPaths, outputPath, options = {}) {
       const pdfBytes = fs.readFileSync(pdfPath);
       const pdf = await PDFDocument.load(pdfBytes);
 
+      // 检查PDF页面是否有效，并修复缺少Contents的页面
+      for (let i = 0; i < pdf.getPageCount(); i++) {
+        const page = pdf.getPage(i);
+        if (!page.node.Contents()) {
+          console.warn(`  警告: ${pdfPath} 的页 ${i + 1} 缺少内容对象，正在修复...`);
+
+          // 为缺少Contents的页面创建一个空的内容流
+          // 这样copyPages就能正常工作了
+          const context = pdf.context;
+          const contentStream = context.stream('');
+          page.node.set(context.obj('Contents'), contentStream);
+        }
+      }
+
       // 复制所有页面
       const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
 

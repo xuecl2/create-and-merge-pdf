@@ -19,11 +19,13 @@ async function generateReceipt(data, outputPath) {
       const stream = fs.createWriteStream(outputPath);
       doc.pipe(stream);
 
-      // 注册中文字体（使用系统字体）
-      const fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+      // 注册中文字体（使用思源黑体）
+      const fontPath = 'fonts/NotoSansSC-Regular.ttf';
       if (fs.existsSync(fontPath)) {
-        doc.registerFont('normal', fontPath);
-        doc.font('normal');
+        doc.registerFont('chinese', fontPath);
+        doc.font('chinese');
+      } else {
+        throw new Error(`字体文件不存在: ${fontPath}`);
       }
 
       const pageWidth = 841.89;

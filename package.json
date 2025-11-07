@@ -1,27 +1,23 @@
 {
   "name": "create-and-merge-pdf",
   "version": "1.0.0",
-  "description": "生成指定样式的PDF并合并报销单和发票",
+  "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "merge": "node merge-pdf.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [
-    "pdf",
-    "merge",
-    "invoice",
-    "receipt"
-  ],
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:61960/git/xuecl2/create-and-merge-pdf"
+  },
+  "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@pdf-lib/fontkit": "^1.1.1",
-    "jspdf": "^3.0.3",
-    "jspdf-autotable": "^5.0.2",
+    "fontkit": "^2.0.4",
     "pdf-lib": "^1.17.1",
+    "pdf-to-png-converter": "^3.11.0",
     "pdfkit": "^0.17.2",
-    "playwright-core": "^1.56.1",
     "qrcode": "^1.5.4"
   }
 }

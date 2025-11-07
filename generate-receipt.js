@@ -1,351 +1,390 @@
-const fs = require('fs');
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
+const fs = require('fs');
+const path = require('path');
+
+// 中文字体路径
+const FONT_PATH = path.join(__dirname, 'fonts/NotoSansSC.otf');
+
+// A4 尺寸 (595.28 x 841.89 points)
+const PAGE_WIDTH = 595.28;
+const PAGE_HEIGHT = 841.89;
+
+// 布局常量
+const MARGIN_LEFT = 50;
+const MARGIN_TOP = 50;
+const BINDING_LINE_WIDTH = 30;
 
 /**
- * 生成差旅报销单 PDF
- * @param {object} data - 报销单数据
- * @param {string} outputPath - 输出文件路径
+ * 生成二维码图片 Buffer
  */
-async function generateReceipt(data, outputPath) {
-  return new Promise(async (resolve, reject) => {
-    try {
-      // 创建 PDF 文档 - 使用横向 A4
-      const doc = new PDFDocument({
-        size: [841.89, 595.28], // A4 横向
-        margins: { top: 30, bottom: 30, left: 40, right: 40 }
-      });
-
-      // 创建写入流
-      const stream = fs.createWriteStream(outputPath);
-      doc.pipe(stream);
-
-      // 注册中文字体（使用思源黑体）
-      const fontPath = 'fonts/NotoSansSC-Regular.ttf';
-      if (fs.existsSync(fontPath)) {
-        doc.registerFont('chinese', fontPath);
-        doc.font('chinese');
-      } else {
-        throw new Error(`字体文件不存在: ${fontPath}`);
-      }
-
-      const pageWidth = 841.89;
-      const pageHeight = 595.28;
-      const leftMargin = 120; // 给二维码和竖排文字留出空间
-      const rightMargin = 40;
-
-      // 生成二维码
-      const qrData = data.qrData || `报销单-${data.date || ''}-${data.traveler || ''}`;
-      const qrCodeDataUrl = await QRCode.toDataURL(qrData, { width: 100, margin: 1 });
-      const qrBuffer = Buffer.from(qrCodeDataUrl.split(',')[1], 'base64');
-
-      // 绘制左上角二维码
-      doc.image(qrBuffer, 30, 40, { width: 80, height: 80 });
-
-      // 绘制左侧竖排文字 - "差旅报销单淮安新业电力建设有限公司"
-      const verticalText = '差旅报销单淮安新业电力建设有限公司';
-      doc.fontSize(10);
-      let verticalY = 150;
-      for (let i = 0; i < verticalText.length; i++) {
-        doc.text(verticalText[i], 55, verticalY, { width: 20, align: 'center' });
-        verticalY += 20;
-      }
-
-      // 绘制虚线边框（左侧装订线）
-      doc.strokeColor('#000000')
-         .dash(5, { space: 5 })
-         .moveTo(110, 140)
-         .lineTo(110, pageHeight - 50)
-         .stroke()
-         .undash();
-
-      // 绘制标题
-      doc.fontSize(20)
-         .text('差 旅 报 销 单', leftMargin, 40, {
-           width: pageWidth - leftMargin - rightMargin,
-           align: 'center',
-           underline: true
-         });
-
-      // 绘制日期（标题下方）
-      doc.fontSize(14)
-         .text(data.date || '2025年07月28日', leftMargin, 70, {
-           width: pageWidth - leftMargin - rightMargin,
-           align: 'center'
-         });
-
-      // 右上角信息
-      const rightX = pageWidth - rightMargin - 180;
-      doc.fontSize(10)
-         .text(`部门：${data.department || ''}`, rightX, 40, { width: 180, align: 'left' })
-         .text(`页码：第 1 页/ 共 1 页`, rightX, 55, { width: 180, align: 'left' })
-         .text(`金额：${data.totalAmount || '0.00'}元 / ${data.totalAmount || '0.00'}元`, rightX, 70, { width: 180, align: 'left' });
-
-      // 基本信息区域
-      let currentY = 110;
-      const col1X = leftMargin;
-      const col2X = leftMargin + 80;
-      const col3X = leftMargin + 280;
-      const col4X = leftMargin + 360;
-      const col5X = leftMargin + 520;
-      const col6X = leftMargin + 600;
-
-      doc.fontSize(10)
-         .text('出差人', col1X, currentY)
-         .text(data.traveler || '', col2X, currentY)
-         .text('出差事由', col3X, currentY)
-         .text(data.reason || '', col4X, currentY)
-         .text('项目名称', col5X, currentY)
-         .text(data.projectName || '', col6X, currentY);
-
-      // 绘制表格
-      currentY = 140;
-      const tableTop = currentY;
-      const rowHeight = 25;
-
-      // 表头
-      const headers = [
-        { text: '出发', x: col1X, width: 100 },
-        { text: '到达', x: col1X + 100, width: 100 },
-        { text: '交通', x: col1X + 200, width: 80 },
-        { text: '天\n数', x: col1X + 280, width: 30 },
-        { text: '出差补贴', x: col1X + 310, width: 90 },
-        { text: '其他费用金额', x: col1X + 400, width: 200 },
-        { text: '小计', x: col1X + 600, width: 50 },
-        { text: '单据\n张数', x: col1X + 650, width: 50 }
-      ];
-
-      // 绘制第一行表头
-      doc.fontSize(9);
-      headers.forEach(header => {
-        doc.text(header.text, header.x, currentY, { width: header.width, align: 'center' });
-      });
-
-      currentY += rowHeight;
-
-      // 绘制第二行表头（子表头）
-      const subHeaders = [
-        { text: '日期', x: col1X, width: 50 },
-        { text: '地点', x: col1X + 50, width: 50 },
-        { text: '日期', x: col1X + 100, width: 50 },
-        { text: '地点', x: col1X + 150, width: 50 },
-        { text: '工具', x: col1X + 200, width: 40 },
-        { text: '金额', x: col1X + 240, width: 40 },
-        { text: '', x: col1X + 280, width: 30 },
-        { text: '标准', x: col1X + 310, width: 45 },
-        { text: '金额', x: col1X + 355, width: 45 },
-        { text: '住宿', x: col1X + 400, width: 50 },
-        { text: '市内\n交通', x: col1X + 450, width: 50 },
-        { text: '其他\n费用', x: col1X + 500, width: 50 },
-        { text: '', x: col1X + 600, width: 50 },
-        { text: '', x: col1X + 650, width: 50 }
-      ];
-
-      subHeaders.forEach(header => {
-        doc.text(header.text, header.x, currentY, { width: header.width, align: 'center' });
-      });
-
-      currentY += rowHeight;
-
-      // 绘制数据行
-      const trips = data.trips || [];
-      trips.forEach((trip, index) => {
-        doc.fontSize(9)
-           .text(trip.departDate || '', col1X, currentY, { width: 50, align: 'center' })
-           .text(trip.departPlace || '', col1X + 50, currentY, { width: 50, align: 'center' })
-           .text(trip.arriveDate || '', col1X + 100, currentY, { width: 50, align: 'center' })
-           .text(trip.arrivePlace || '', col1X + 150, currentY, { width: 50, align: 'center' })
-           .text(trip.transport || '', col1X + 200, currentY, { width: 40, align: 'center' })
-           .text(trip.transportFee || '0.00', col1X + 240, currentY, { width: 40, align: 'center' })
-           .text(trip.days || '0.0', col1X + 280, currentY, { width: 30, align: 'center' })
-           .text(trip.allowanceStd || '50.00', col1X + 310, currentY, { width: 45, align: 'center' })
-           .text(trip.allowanceFee || '0.00', col1X + 355, currentY, { width: 45, align: 'center' })
-           .text(trip.accommodation || '0.00', col1X + 400, currentY, { width: 50, align: 'center' })
-           .text(trip.localTransport || '0.00', col1X + 450, currentY, { width: 50, align: 'center' })
-           .text(trip.otherFee || '0.00', col1X + 500, currentY, { width: 50, align: 'center' })
-           .text(trip.subtotal || '0.00', col1X + 600, currentY, { width: 50, align: 'center' });
-
-        currentY += rowHeight;
-      });
-
-      // 填充空行（至少4行）
-      for (let i = trips.length; i < 4; i++) {
-        currentY += rowHeight;
-      }
-
-      // 合计行
-      doc.fontSize(10)
-         .text('合  计', col1X + 180, currentY, { width: 60, align: 'center' })
-         .text(data.totalTransportFee || '0.00', col1X + 240, currentY, { width: 40, align: 'center' })
-         .text(data.totalDays || '0.0', col1X + 280, currentY, { width: 30, align: 'center' })
-         .text('--', col1X + 310, currentY, { width: 45, align: 'center' })
-         .text(data.totalAllowanceFee || '0.00', col1X + 355, currentY, { width: 45, align: 'center' })
-         .text(data.totalAccommodation || '0.00', col1X + 400, currentY, { width: 50, align: 'center' })
-         .text(data.totalLocalTransport || '0.00', col1X + 450, currentY, { width: 50, align: 'center' })
-         .text(data.totalOtherFee || '0.00', col1X + 500, currentY, { width: 50, align: 'center' })
-         .text(data.totalAmount || '0.00', col1X + 600, currentY, { width: 50, align: 'center' });
-
-      currentY += rowHeight + 5;
-
-      // 金额合计行
-      doc.fontSize(10)
-         .text('金额合计', col1X, currentY)
-         .text('（大写）', col1X, currentY + 15)
-         .text(`${data.totalAmountChinese || ''}`, col1X + 60, currentY + 7)
-         .text(`¥：${data.totalAmount || '0.00'}`, col1X + 200, currentY + 7)
-         .text(`预借金额 _________`, col1X + 350, currentY + 7)
-         .text(`退/补金额_________`, col1X + 520, currentY + 7);
-
-      currentY += 45;
-
-      // 签名栏
-      const signY = currentY;
-      const signatureSpacing = 110;
-
-      doc.fontSize(10)
-         .text('领导批审', col1X, signY, { width: 100, align: 'center' })
-         .text('部门负责人', col1X + signatureSpacing, signY, { width: 100, align: 'center' })
-         .text('财务负责人', col1X + signatureSpacing * 2, signY, { width: 100, align: 'center' })
-         .text('会计', col1X + signatureSpacing * 3, signY, { width: 100, align: 'center' })
-         .text('出纳', col1X + signatureSpacing * 4, signY, { width: 100, align: 'center' })
-         .text('领款人', col1X + signatureSpacing * 5, signY, { width: 100, align: 'center' });
-
-      // 绘制表格边框
-      drawTableBorders(doc, tableTop, rowHeight, trips.length, leftMargin, rightMargin);
-
-      // 底部装订线
-      doc.fontSize(9)
-         .text(`----- -------${data.companyName || '淮安新业电力建设有限公司'} ---- 装订线----------`,
-               leftMargin, pageHeight - 50, {
-                 width: pageWidth - leftMargin - rightMargin,
-                 align: 'center'
-               });
-
-      // 完成 PDF
-      doc.end();
-
-      stream.on('finish', () => {
-        console.log(`报销单生成成功: ${outputPath}`);
-        resolve(outputPath);
-      });
-
-      stream.on('error', (err) => {
-        reject(err);
-      });
-
-    } catch (error) {
-      reject(error);
-    }
+async function generateQRCode(text) {
+  return await QRCode.toBuffer(text, {
+    width: 80,
+    margin: 0
   });
 }
 
 /**
- * 绘制表格边框
+ * 绘制单元格
  */
-function drawTableBorders(doc, tableTop, rowHeight, dataRows, leftMargin, rightMargin) {
-  const pageWidth = 841.89;
-  const tableWidth = pageWidth - leftMargin - rightMargin;
-  const tableHeight = rowHeight * (2 + dataRows + 2); // 2行表头 + 数据行 + 合计行 + 金额合计行
+function drawCell(doc, x, y, width, height, text, options = {}) {
+  const {
+    align = 'left',
+    valign = 'center',
+    fontSize = 9,
+    border = true,
+    lineWidth = 0.5
+  } = options;
 
-  // 外框
-  doc.rect(leftMargin, tableTop, tableWidth, tableHeight).stroke();
-
-  // 横线
-  for (let i = 1; i <= dataRows + 3; i++) {
-    doc.moveTo(leftMargin, tableTop + rowHeight * i)
-       .lineTo(leftMargin + tableWidth, tableTop + rowHeight * i)
-       .stroke();
+  // 绘制边框
+  if (border) {
+    doc.lineWidth(lineWidth);
+    doc.rect(x, y, width, height).stroke();
   }
 
-  // 竖线
-  const verticalLines = [50, 100, 150, 200, 240, 280, 310, 355, 400, 450, 500, 600, 650];
-  verticalLines.forEach(x => {
-    doc.moveTo(leftMargin + x, tableTop)
-       .lineTo(leftMargin + x, tableTop + rowHeight * (dataRows + 3))
-       .stroke();
-  });
+  // 绘制文字
+  if (text !== undefined && text !== null) {
+    doc.fontSize(fontSize);
 
-  // 合并单元格的特殊边框（第一行表头的合并单元格）
-  const mergeLines = [
-    { x: leftMargin + 100, y1: tableTop, y2: tableTop + rowHeight },
-    { x: leftMargin + 200, y1: tableTop, y2: tableTop + rowHeight },
-    { x: leftMargin + 280, y1: tableTop, y2: tableTop + rowHeight * 2 },
-    { x: leftMargin + 310, y1: tableTop, y2: tableTop + rowHeight },
-    { x: leftMargin + 400, y1: tableTop, y2: tableTop + rowHeight },
-    { x: leftMargin + 600, y1: tableTop, y2: tableTop + rowHeight * 2 },
-    { x: leftMargin + 650, y1: tableTop, y2: tableTop + rowHeight * 2 }
-  ];
+    const textY = valign === 'center'
+      ? y + (height - fontSize) / 2 - 2
+      : valign === 'top'
+      ? y + 2
+      : y + height - fontSize - 2;
 
-  mergeLines.forEach(line => {
-    doc.moveTo(line.x, line.y1)
-       .lineTo(line.x, line.y2)
-       .stroke();
-  });
+    if (align === 'center') {
+      doc.text(text, x, textY, {
+        width: width,
+        align: 'center'
+      });
+    } else if (align === 'right') {
+      doc.text(text, x + width - doc.widthOfString(text) - 3, textY);
+    } else {
+      doc.text(text, x + 3, textY, {
+        width: width - 6,
+        lineBreak: false
+      });
+    }
+  }
 }
 
-// 命令行参数处理
-if (require.main === module) {
-  // 测试数据
-  const testData = {
-    date: '2025年07月28日',
-    department: '经营计划室',
-    totalAmount: '99.00',
-    traveler: '谢松',
-    reason: '999',
-    projectName: '',
-    trips: [
-      {
-        departDate: '2025-07-29 00',
-        departPlace: '444',
-        arriveDate: '2025-07-29',
-        arrivePlace: '',
-        transport: '高铁',
-        transportFee: '44.00',
-        days: '0.0',
-        allowanceStd: '50.00',
-        allowanceFee: '0.00',
-        accommodation: '0.00',
-        localTransport: '0.00',
-        otherFee: '0.00',
-        subtotal: '44.00'
-      },
-      {
-        departDate: '2025-07-29 00',
-        departPlace: '55',
-        arriveDate: '2025-07-29',
-        arrivePlace: '',
-        transport: '高铁',
-        transportFee: '55.00',
-        days: '0.0',
-        allowanceStd: '50.00',
-        allowanceFee: '0.00',
-        accommodation: '0.00',
-        localTransport: '0.00',
-        otherFee: '0.00',
-        subtotal: '55.00'
-      }
-    ],
-    totalTransportFee: '99.00',
-    totalDays: '0.0',
-    totalAllowanceFee: '0.00',
-    totalAccommodation: '0.00',
-    totalLocalTransport: '0.00',
-    totalOtherFee: '0.00',
-    totalAmountChinese: '玖拾玖元整',
-    companyName: '淮安新业电力建设有限公司'
+/**
+ * 绘制装订线
+ */
+function drawBindingLine(doc) {
+  doc.save();
+  doc.fontSize(10);
+
+  // 在左侧绘制虚线
+  doc.strokeColor('#999');
+  doc.lineWidth(0.5);
+  doc.lineCap('round');
+  doc.dash(3, { space: 3 });
+
+  // 绘制虚线
+  doc.moveTo(BINDING_LINE_WIDTH, 100);
+  doc.lineTo(BINDING_LINE_WIDTH, PAGE_HEIGHT - 100);
+  doc.stroke();
+
+  doc.undash();
+
+  // 绘制竖排文字
+  doc.strokeColor('#000');
+  doc.fillColor('#666');
+
+  // 旋转并绘制文字
+  doc.rotate(-90, { origin: [15, PAGE_HEIGHT / 2] });
+  doc.text('----- -------淮安新业电力建设有限公司 ---- 装订线----------',
+    15 - 200, PAGE_HEIGHT / 2 - 5);
+
+  doc.restore();
+  doc.fillColor('#000');
+}
+
+/**
+ * 绘制表格表头和基本信息
+ */
+function drawHeader(doc, data, qrBuffer) {
+  const startX = MARGIN_LEFT + BINDING_LINE_WIDTH;
+  const startY = MARGIN_TOP;
+
+  // 绘制二维码
+  doc.image(qrBuffer, startX, startY, { width: 70, height: 70 });
+
+  // 绘制标题
+  doc.fontSize(22).font(FONT_PATH);
+  const title = '差 旅 报 销 单';
+  const titleWidth = doc.widthOfString(title);
+  const titleX = (PAGE_WIDTH + BINDING_LINE_WIDTH) / 2 - titleWidth / 2;
+  doc.text(title, titleX, startY + 10);
+
+  // 绘制日期
+  doc.fontSize(14);
+  const dateWidth = doc.widthOfString(data.date);
+  const dateX = (PAGE_WIDTH + BINDING_LINE_WIDTH) / 2 - dateWidth / 2;
+  doc.text(data.date, dateX, startY + 38);
+
+  // 绘制右上角信息
+  doc.fontSize(9);
+  const rightX = PAGE_WIDTH - 130;
+  doc.text(`部门：${data.department}`, rightX, startY + 10);
+  doc.text(`页码：${data.pageNumber}`, rightX, startY + 25);
+  doc.text(`金额：${data.totalAmount}元 / ${data.totalAmount}元`, rightX, startY + 40);
+}
+
+/**
+ * 绘制主表格
+ */
+function drawTable(doc, data) {
+  const startX = MARGIN_LEFT + BINDING_LINE_WIDTH;
+  const startY = MARGIN_TOP + 75;
+  const tableWidth = PAGE_WIDTH - MARGIN_LEFT * 2 - BINDING_LINE_WIDTH;
+
+  // 行高
+  const rowHeight = 25;
+  const headerRowHeight = 30;
+
+  let currentY = startY;
+
+  // 第一行：出差人信息
+  const row1_col1_width = 60;
+  const row1_col2_width = 100;
+  const row1_col3_width = 80;
+  const row1_col4_width = 80;
+  const row1_col5_width = tableWidth - row1_col1_width - row1_col2_width - row1_col3_width - row1_col4_width;
+
+  drawCell(doc, startX, currentY, row1_col1_width, headerRowHeight, '出差人', { align: 'center', fontSize: 10 });
+  drawCell(doc, startX + row1_col1_width, currentY, row1_col2_width, headerRowHeight, data.employee, { align: 'center', fontSize: 10 });
+  drawCell(doc, startX + row1_col1_width + row1_col2_width, currentY, row1_col3_width, headerRowHeight, '出差事由', { align: 'center', fontSize: 10 });
+  drawCell(doc, startX + row1_col1_width + row1_col2_width + row1_col3_width, currentY, row1_col4_width, headerRowHeight, data.reason, { align: 'center', fontSize: 10 });
+  drawCell(doc, startX + row1_col1_width + row1_col2_width + row1_col3_width + row1_col4_width, currentY, row1_col5_width, headerRowHeight, '项目名称', { align: 'center', fontSize: 10 });
+
+  currentY += headerRowHeight;
+
+  // 第二行：主表头（出发、到达等）
+  const mainHeaderWidths = {
+    departure: 120,
+    arrival: 120,
+    transport: 95,
+    days: 30,
+    allowance: 95,
+    otherFees: 200,
+    subtotal: 50,
+    receipts: tableWidth - 120 - 120 - 95 - 30 - 95 - 200 - 50
   };
 
-  const outputPath = process.argv[2] || '生成的报销单.pdf';
+  let x = startX;
+  drawCell(doc, x, currentY, mainHeaderWidths.departure, rowHeight, '出发', { align: 'center', fontSize: 9 });
+  x += mainHeaderWidths.departure;
+  drawCell(doc, x, currentY, mainHeaderWidths.arrival, rowHeight, '到达', { align: 'center', fontSize: 9 });
+  x += mainHeaderWidths.arrival;
+  drawCell(doc, x, currentY, mainHeaderWidths.transport, rowHeight, '交通', { align: 'center', fontSize: 9 });
+  x += mainHeaderWidths.transport;
+  drawCell(doc, x, currentY, mainHeaderWidths.days, rowHeight, '天\n数', { align: 'center', fontSize: 8 });
+  x += mainHeaderWidths.days;
+  drawCell(doc, x, currentY, mainHeaderWidths.allowance, rowHeight, '出差补贴', { align: 'center', fontSize: 9 });
+  x += mainHeaderWidths.allowance;
+  drawCell(doc, x, currentY, mainHeaderWidths.otherFees, rowHeight, '其他费用金额', { align: 'center', fontSize: 9 });
+  x += mainHeaderWidths.otherFees;
+  drawCell(doc, x, currentY, mainHeaderWidths.subtotal, rowHeight, '小计', { align: 'center', fontSize: 9 });
+  x += mainHeaderWidths.subtotal;
+  drawCell(doc, x, currentY, mainHeaderWidths.receipts, rowHeight, '单据\n张数', { align: 'center', fontSize: 8 });
 
-  generateReceipt(testData, outputPath)
-    .then(() => {
-      console.log('生成完成！');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('生成失败:', error);
-      process.exit(1);
-    });
+  currentY += rowHeight;
+
+  // 第三行：详细列名
+  const detailHeaderWidths = {
+    depDate: 60,
+    depPlace: 60,
+    arrDate: 60,
+    arrPlace: 60,
+    tool: 45,
+    amount: 50,
+    standard: 30,
+    allowanceAmt: 47,
+    accommodation: 48,
+    localTransport: 51,
+    other: 50,
+    subtotal: 50,
+    receipts: tableWidth - 60 - 60 - 60 - 60 - 45 - 50 - 30 - 47 - 48 - 51 - 50 - 50
+  };
+
+  x = startX;
+  drawCell(doc, x, currentY, detailHeaderWidths.depDate, rowHeight, '日期', { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.depDate;
+  drawCell(doc, x, currentY, detailHeaderWidths.depPlace, rowHeight, '地点', { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.depPlace;
+  drawCell(doc, x, currentY, detailHeaderWidths.arrDate, rowHeight, '日期', { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.arrDate;
+  drawCell(doc, x, currentY, detailHeaderWidths.arrPlace, rowHeight, '地点', { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.arrPlace;
+  drawCell(doc, x, currentY, detailHeaderWidths.tool, rowHeight, '工具', { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.tool;
+  drawCell(doc, x, currentY, detailHeaderWidths.amount, rowHeight, '金额', { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.amount;
+  drawCell(doc, x, currentY, detailHeaderWidths.standard, rowHeight, '', { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.standard;
+  drawCell(doc, x, currentY, detailHeaderWidths.allowanceAmt, rowHeight, '标准', { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.allowanceAmt;
+  drawCell(doc, x, currentY, detailHeaderWidths.accommodation, rowHeight, '金额', { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.accommodation;
+  drawCell(doc, x, currentY, detailHeaderWidths.localTransport, rowHeight, '住宿', { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.localTransport;
+  drawCell(doc, x, currentY, detailHeaderWidths.other, rowHeight, '市内\n交通', { align: 'center', fontSize: 7 });
+  x += detailHeaderWidths.other;
+  drawCell(doc, x, currentY, detailHeaderWidths.subtotal, rowHeight, '其他\n费用', { align: 'center', fontSize: 7 });
+  x += detailHeaderWidths.subtotal;
+  drawCell(doc, x, currentY, detailHeaderWidths.receipts, rowHeight, '', { align: 'center', fontSize: 8 });
+
+  currentY += rowHeight;
+
+  // 明细行
+  data.details.forEach(detail => {
+    x = startX;
+    drawCell(doc, x, currentY, detailHeaderWidths.depDate, rowHeight, detail.departureDate, { align: 'center', fontSize: 7 });
+    x += detailHeaderWidths.depDate;
+    drawCell(doc, x, currentY, detailHeaderWidths.depPlace, rowHeight, detail.departurePlace, { align: 'center', fontSize: 8 });
+    x += detailHeaderWidths.depPlace;
+    drawCell(doc, x, currentY, detailHeaderWidths.arrDate, rowHeight, detail.arrivalDate, { align: 'center', fontSize: 7 });
+    x += detailHeaderWidths.arrDate;
+    drawCell(doc, x, currentY, detailHeaderWidths.arrPlace, rowHeight, detail.arrivalPlace, { align: 'center', fontSize: 8 });
+    x += detailHeaderWidths.arrPlace;
+    drawCell(doc, x, currentY, detailHeaderWidths.tool, rowHeight, detail.transport, { align: 'center', fontSize: 8 });
+    x += detailHeaderWidths.tool;
+    drawCell(doc, x, currentY, detailHeaderWidths.amount, rowHeight, detail.transportAmount, { align: 'center', fontSize: 8 });
+    x += detailHeaderWidths.amount;
+    drawCell(doc, x, currentY, detailHeaderWidths.standard, rowHeight, detail.days, { align: 'center', fontSize: 8 });
+    x += detailHeaderWidths.standard;
+    drawCell(doc, x, currentY, detailHeaderWidths.allowanceAmt, rowHeight, detail.allowanceStandard, { align: 'center', fontSize: 8 });
+    x += detailHeaderWidths.allowanceAmt;
+    drawCell(doc, x, currentY, detailHeaderWidths.accommodation, rowHeight, detail.allowanceAmount, { align: 'center', fontSize: 8 });
+    x += detailHeaderWidths.accommodation;
+    drawCell(doc, x, currentY, detailHeaderWidths.localTransport, rowHeight, detail.accommodation, { align: 'center', fontSize: 8 });
+    x += detailHeaderWidths.localTransport;
+    drawCell(doc, x, currentY, detailHeaderWidths.other, rowHeight, detail.localTransport, { align: 'center', fontSize: 8 });
+    x += detailHeaderWidths.other;
+    drawCell(doc, x, currentY, detailHeaderWidths.subtotal, rowHeight, detail.otherExpenses, { align: 'center', fontSize: 8 });
+    x += detailHeaderWidths.subtotal;
+    drawCell(doc, x, currentY, detailHeaderWidths.receipts, rowHeight, '', { align: 'center', fontSize: 8 });
+
+    currentY += rowHeight;
+  });
+
+  // 空行（填充到固定行数）
+  const emptyRows = 3 - data.details.length;
+  for (let i = 0; i < emptyRows; i++) {
+    x = startX;
+    for (let key in detailHeaderWidths) {
+      drawCell(doc, x, currentY, detailHeaderWidths[key], rowHeight, '', { fontSize: 8 });
+      x += detailHeaderWidths[key];
+    }
+    currentY += rowHeight;
+  }
+
+  // 合计行
+  x = startX;
+  drawCell(doc, x, currentY, detailHeaderWidths.depDate + detailHeaderWidths.depPlace + detailHeaderWidths.arrDate + detailHeaderWidths.arrPlace, rowHeight, '合    计', { align: 'center', fontSize: 9 });
+  x += detailHeaderWidths.depDate + detailHeaderWidths.depPlace + detailHeaderWidths.arrDate + detailHeaderWidths.arrPlace;
+  drawCell(doc, x, currentY, detailHeaderWidths.tool, rowHeight, '', { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.tool;
+  drawCell(doc, x, currentY, detailHeaderWidths.amount, rowHeight, data.summary.totalTransport, { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.amount;
+  drawCell(doc, x, currentY, detailHeaderWidths.standard, rowHeight, data.summary.totalDays, { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.standard;
+  drawCell(doc, x, currentY, detailHeaderWidths.allowanceAmt, rowHeight, '--', { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.allowanceAmt;
+  drawCell(doc, x, currentY, detailHeaderWidths.accommodation, rowHeight, data.summary.totalAllowance, { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.accommodation;
+  drawCell(doc, x, currentY, detailHeaderWidths.localTransport, rowHeight, data.summary.totalAccommodation, { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.localTransport;
+  drawCell(doc, x, currentY, detailHeaderWidths.other, rowHeight, data.summary.totalLocalTransport, { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.other;
+  drawCell(doc, x, currentY, detailHeaderWidths.subtotal, rowHeight, data.summary.totalOther, { align: 'center', fontSize: 8 });
+  x += detailHeaderWidths.subtotal;
+  drawCell(doc, x, currentY, detailHeaderWidths.receipts, rowHeight, data.summary.grandTotal, { align: 'center', fontSize: 8 });
+
+  currentY += rowHeight;
+
+  // 金额合计行
+  const summaryRowHeight = 35;
+  drawCell(doc, startX, currentY, 120, summaryRowHeight, '金额合计\n（大写）', { align: 'center', fontSize: 9 });
+  drawCell(doc, startX + 120, currentY, 250, summaryRowHeight, `${data.summary.amountInWords}  ¥：${data.summary.amountInNumbers}`, { align: 'left', fontSize: 9, valign: 'center' });
+  drawCell(doc, startX + 370, currentY, 80, summaryRowHeight, `预借金额`, { align: 'center', fontSize: 9 });
+  drawCell(doc, startX + 450, currentY, 100, summaryRowHeight, '_________', { align: 'center', fontSize: 9 });
+  drawCell(doc, startX + 550, currentY, 100, summaryRowHeight, '退/补金额_________', { align: 'left', fontSize: 8 });
+
+  currentY += summaryRowHeight;
+
+  // 审批栏
+  const approvalRowHeight = 50;
+  const approvalWidth = tableWidth / 6;
+
+  const approvers = ['领导批审', '部门负责人', '财务负责人', '会计', '出纳', '领款人'];
+  x = startX;
+  approvers.forEach(approver => {
+    drawCell(doc, x, currentY, approvalWidth, approvalRowHeight, approver, { align: 'center', fontSize: 9 });
+    x += approvalWidth;
+  });
 }
 
-module.exports = { generateReceipt };
+/**
+ * 生成报销单 PDF
+ */
+async function generateReimbursementPDF(data, outputPath) {
+  // 创建 PDF 文档
+  const doc = new PDFDocument({
+    size: 'A4',
+    margins: { top: 0, bottom: 0, left: 0, right: 0 }
+  });
+
+  // 输出到文件
+  const stream = fs.createWriteStream(outputPath);
+  doc.pipe(stream);
+
+  // 注册中文字体
+  doc.registerFont('cn', FONT_PATH);
+  doc.font('cn');
+
+  // 生成二维码
+  const qrBuffer = await generateQRCode(data.code);
+
+  // 绘制装订线
+  drawBindingLine(doc);
+
+  // 绘制表头和基本信息
+  drawHeader(doc, data, qrBuffer);
+
+  // 绘制主表格
+  drawTable(doc, data);
+
+  // 完成 PDF
+  doc.end();
+
+  return new Promise((resolve, reject) => {
+    stream.on('finish', resolve);
+    stream.on('error', reject);
+  });
+}
+
+// 主函数
+async function main() {
+  try {
+    const data = require('./mock-data');
+    const outputPath = path.join(__dirname, 'generated-receipt.pdf');
+
+    console.log('开始生成报销单 PDF...');
+    await generateReimbursementPDF(data, outputPath);
+    console.log(`报销单 PDF 生成成功: ${outputPath}`);
+  } catch (error) {
+    console.error('生成报销单失败:', error);
+    process.exit(1);
+  }
+}
+
+// 如果直接运行此文件
+if (require.main === module) {
+  main();
+}
+
+module.exports = { generateReimbursementPDF };

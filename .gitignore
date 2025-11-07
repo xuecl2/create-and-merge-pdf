@@ -2,3 +2,7 @@ node_modules/
 *.log
 .env
 merged_*.pdf
+demo-*.pdf
+测试*.pdf
+test-*.pdf
+最终*.pdf

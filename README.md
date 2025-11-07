@@ -1,11 +1,11 @@
 # PDF 生成与合并工具
 
-这是一个 Node.js 项目，用于生成指定样式的 PDF 并将报销单和发票合并成一个 PDF 文档。
+这是一个 Node.js 项目，用于生成差旅报销单 PDF 并将报销单和发票合并成一个 PDF 文档。
 
 ## 功能
 
-1. ✅ 生成指定样式的 PDF（已完成）
-2. ✅ 将报销单和若干张发票合并成一个 PDF 文档
+1. ✅ 使用 pdfkit 生成差旅报销单 PDF（已完成）
+2. ✅ 将报销单和若干张发票合并成一个 PDF 文档（已完成）
 
 ## 安装
 
@@ -13,9 +13,72 @@
 npm install
 ```
 
+## 快速开始
+
+运行完整演示（生成报销单 + 合并发票）：
+
+```bash
+node demo.js
+```
+
+这将生成：
+- `demo-报销单.pdf` - 使用测试数据生成的报销单
+- `demo-合并结果.pdf` - 报销单和发票的合并结果（保持原始尺寸）
+- `demo-合并结果-A4.pdf` - 报销单和发票的合并结果（统一调整为A4）
+
 ## 使用方法
 
-### 合并 PDF 文件
+### 1. 生成报销单
+
+使用测试数据生成报销单：
+
+```bash
+node generate-receipt.js [输出文件名]
+```
+
+在代码中使用：
+
+```javascript
+const { generateReceipt } = require('./generate-receipt');
+
+const receiptData = {
+  date: '2025年07月28日',
+  department: '经营计划室',
+  totalAmount: '99.00',
+  traveler: '谢松',
+  reason: '999',
+  projectName: '',
+  trips: [
+    {
+      departDate: '2025-07-29 00',
+      departPlace: '444',
+      arriveDate: '2025-07-29',
+      arrivePlace: '',
+      transport: '高铁',
+      transportFee: '44.00',
+      days: '0.0',
+      allowanceStd: '50.00',
+      allowanceFee: '0.00',
+      accommodation: '0.00',
+      localTransport: '0.00',
+      otherFee: '0.00',
+      subtotal: '44.00'
+    }
+  ],
+  totalTransportFee: '99.00',
+  totalDays: '0.0',
+  totalAllowanceFee: '0.00',
+  totalAccommodation: '0.00',
+  totalLocalTransport: '0.00',
+  totalOtherFee: '0.00',
+  totalAmountChinese: '玖拾玖元整',
+  companyName: '淮安新业电力建设有限公司'
+};
+
+await generateReceipt(receiptData, '报销单.pdf');
+```
+
+### 2. 合并 PDF 文件
 
 ```bash
 node merge-pdf.js [选项] <输出文件名> <报销单PDF> <发票PDF1> [发票PDF2] ...
@@ -74,8 +137,10 @@ npm run merge -- --size=A4 merged.pdf 费用报销单_2025-11-07_08-31-27.pdf �
 
 ```
 create-and-merge-pdf/
-├── merge-pdf.js              # PDF 合并脚本（支持 A4/B4 纸张调整）
+├── generate-receipt.js       # 使用 pdfkit 生成报销单
+├── merge-pdf.js              # 使用 pdf-lib 合并 PDF（支持 A4/B4 纸张调整）
 ├── check-pdf-size.js         # PDF 页面尺寸检查工具
+├── demo.js                   # 完整演示脚本
 ├── package.json              # 项目配置文件
 ├── README.md                 # 说明文档
 ├── 费用报销单_2025-11-07_08-31-27.pdf  # 示例报销单
@@ -114,7 +179,8 @@ node check-pdf-size.js 费用报销单_2025-11-07_08-31-27.pdf 京东发票.pdf
 
 ## 依赖
 
-- [pdf-lib](https://github.com/Hopding/pdf-lib) - PDF 创建和操作库
+- [pdfkit](https://github.com/foliojs/pdfkit) - PDF 生成库（用于生成报销单）
+- [pdf-lib](https://github.com/Hopding/pdf-lib) - PDF 操作库（用于合并 PDF）
 
 ## 注意事项
 

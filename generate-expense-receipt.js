@@ -94,7 +94,7 @@ function drawText(doc, text, x, y, options = {}) {
 function drawBindingLine(doc) {
   doc.save();
 
-  // 绘制虚线
+  // 绘制虚线（只保留一条带公司名的装订线）
   doc.strokeColor('#999');
   doc.lineWidth(0.5);
   doc.lineCap('round');
@@ -106,15 +106,15 @@ function drawBindingLine(doc) {
 
   doc.undash();
 
-  // 绘制竖排文字
+  // 绘制竖排文字（居中对齐）
   doc.strokeColor('#000');
   doc.fillColor('#666');
   doc.fontSize(10);
 
-  // 旋转并绘制文字
-  doc.rotate(-90, { origin: [15, PAGE_HEIGHT / 2] });
-  doc.text('----- -------淮安新业电力建设有限公司 ---- 装订线----------',
-    15 - 200, PAGE_HEIGHT / 2 - 5);
+  // 旋转并绘制文字，调整位置使文字更居中
+  doc.rotate(-90, { origin: [10, PAGE_HEIGHT / 2] });
+  doc.text('淮安新业电力建设有限公司 ---- 装订线 ----',
+    10 - 120, PAGE_HEIGHT / 2 - 5);
 
   doc.restore();
   doc.fillColor('#000');
@@ -166,6 +166,9 @@ function drawTable(doc, data) {
   const startY = MARGIN_TOP + 60;
   const tableWidth = PAGE_WIDTH - MARGIN_LEFT * 2 - BINDING_LINE_WIDTH;
 
+  // 统一的列宽单位：表格分为4等份，确保所有列对齐
+  const unitWidth = tableWidth / 4;
+
   // 行高
   const infoRowHeight = 22;
   const headerRowHeight = 25;
@@ -178,10 +181,11 @@ function drawTable(doc, data) {
   let x = startX;
 
   // ===== 第一行：部门和项目信息 =====
+  // 前三列占3个单位，最后一列占1个单位（与金额列对齐）
   const col1Width = 55;  // "部门"
   const col2Width = 100; // "总经办"
-  const col3Width = 70; // "项目名称"
-  const col4Width = tableWidth - col1Width - col2Width - col3Width; // "123"
+  const col3Width = unitWidth * 3 - col1Width - col2Width; // "项目名称"
+  const col4Width = unitWidth; // "123"（与金额列对齐）
 
   drawRect(doc, x, currentY, col1Width, infoRowHeight);
   drawText(doc, '部门', x, currentY, { width: col1Width, height: infoRowHeight, align: 'center', fontSize: 10 });
@@ -201,9 +205,10 @@ function drawTable(doc, data) {
   currentY += infoRowHeight;
 
   // ===== 第二行：摘要和金额表头 =====
+  // 摘要占3个单位，金额占1个单位
   x = startX;
-  const summaryColWidth = tableWidth - 120; // "摘要"列
-  const amountColWidth = 120; // "金额"列
+  const summaryColWidth = unitWidth * 3; // "摘要"列（3个单位）
+  const amountColWidth = unitWidth; // "金额"列（1个单位，与领导审批列对齐）
 
   drawRect(doc, x, currentY, summaryColWidth, headerRowHeight);
   drawText(doc, '摘   要', x, currentY, { width: summaryColWidth, height: headerRowHeight, align: 'center', fontSize: 11 });
@@ -239,9 +244,11 @@ function drawTable(doc, data) {
   }
 
   // ===== 合计行 =====
+  // 合计占1个单位（与财务审核对齐），人民币占2个单位（与出纳+报销人对齐），金额占1个单位（与领款人对齐）
   x = startX;
-  const totalLabelWidth = 100;
-  const totalTextWidth = summaryColWidth + amountColWidth - totalLabelWidth - amountColWidth;
+  const totalLabelWidth = unitWidth; // "合计"（1个单位，与财务审核对齐）
+  const totalTextWidth = unitWidth * 2; // "人民币(大写)"（2个单位）
+  const totalAmountWidth = unitWidth; // "金额"（1个单位，与领款人对齐）
 
   drawRect(doc, x, currentY, totalLabelWidth, totalRowHeight);
   drawText(doc, '合计', x, currentY, { width: totalLabelWidth, height: totalRowHeight, align: 'center', fontSize: 11 });
@@ -251,14 +258,15 @@ function drawTable(doc, data) {
   drawText(doc, `人民币(大写): ${data.amountInWords}`, x, currentY, { width: totalTextWidth, height: totalRowHeight, align: 'left', fontSize: 10 });
   x += totalTextWidth;
 
-  drawRect(doc, x, currentY, amountColWidth, totalRowHeight);
-  drawText(doc, `￥：${data.totalAmount.toFixed(2)}`, x, currentY, { width: amountColWidth, height: totalRowHeight, align: 'center', fontSize: 10 });
+  drawRect(doc, x, currentY, totalAmountWidth, totalRowHeight);
+  drawText(doc, `￥：${data.totalAmount.toFixed(2)}`, x, currentY, { width: totalAmountWidth, height: totalRowHeight, align: 'center', fontSize: 10 });
 
   currentY += totalRowHeight;
 
   // ===== 审批栏第一行 =====
+  // 4个单位，每列1个单位
   x = startX;
-  const approverColWidth = tableWidth / 4;
+  const approverColWidth = unitWidth;
 
   const approvers1 = ['部门\n负责人', '财务\n负责人', '分管\n领导', '领导\n审批'];
   approvers1.forEach(approver => {
@@ -270,6 +278,7 @@ function drawTable(doc, data) {
   currentY += approvalRow1Height;
 
   // ===== 审批栏第二行 =====
+  // 4个单位，每列1个单位
   x = startX;
   const approvers2 = ['财务审核', '出纳', '报销人', '领款人'];
   approvers2.forEach(approver => {

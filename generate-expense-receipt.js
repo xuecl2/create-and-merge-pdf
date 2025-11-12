@@ -6,9 +6,9 @@ const path = require('path');
 // 中文字体路径
 const FONT_PATH = path.join(__dirname, 'fonts/NotoSansSC.otf');
 
-// A5 尺寸 (420 x 595.28 points)
-const PAGE_WIDTH = 420;
-const PAGE_HEIGHT = 595.28;
+// A5 横向尺寸 (595.28 x 420 points)
+const PAGE_WIDTH = 595.28;
+const PAGE_HEIGHT = 420;
 
 // 布局常量
 const MARGIN_LEFT = 35;
@@ -283,9 +283,10 @@ function drawTable(doc, data) {
  * 生成费用报销单 PDF
  */
 async function generateExpenseReceipt(data, outputPath) {
-  // 创建 PDF 文档
+  // 创建 PDF 文档（横向）
   const doc = new PDFDocument({
     size: 'A5',
+    layout: 'landscape',
     margins: { top: 0, bottom: 0, left: 0, right: 0 }
   });
 

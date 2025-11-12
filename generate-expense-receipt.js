@@ -6,21 +6,21 @@ const path = require('path');
 // 中文字体路径
 const FONT_PATH = path.join(__dirname, 'fonts/NotoSansSC.otf');
 
-// A4 尺寸 (595.28 x 841.89 points)
-const PAGE_WIDTH = 595.28;
-const PAGE_HEIGHT = 841.89;
+// A5 尺寸 (420 x 595.28 points)
+const PAGE_WIDTH = 420;
+const PAGE_HEIGHT = 595.28;
 
 // 布局常量
-const MARGIN_LEFT = 50;
-const MARGIN_TOP = 50;
-const BINDING_LINE_WIDTH = 30;
+const MARGIN_LEFT = 35;
+const MARGIN_TOP = 35;
+const BINDING_LINE_WIDTH = 20;
 
 /**
  * 生成二维码图片 Buffer
  */
 async function generateQRCode(text) {
   return await QRCode.toBuffer(text, {
-    width: 80,
+    width: 60,
     margin: 0
   });
 }
@@ -100,8 +100,8 @@ function drawBindingLine(doc) {
   doc.lineCap('round');
   doc.dash(3, { space: 3 });
 
-  doc.moveTo(BINDING_LINE_WIDTH, 100);
-  doc.lineTo(BINDING_LINE_WIDTH, PAGE_HEIGHT - 100);
+  doc.moveTo(BINDING_LINE_WIDTH, 70);
+  doc.lineTo(BINDING_LINE_WIDTH, PAGE_HEIGHT - 70);
   doc.stroke();
 
   doc.undash();
@@ -128,34 +128,34 @@ function drawHeader(doc, data, qrBuffer) {
   const startY = MARGIN_TOP;
 
   // 绘制二维码
-  doc.image(qrBuffer, startX, startY, { width: 70, height: 70 });
+  doc.image(qrBuffer, startX, startY, { width: 50, height: 50 });
 
   // 绘制标题
-  doc.fontSize(22).font(FONT_PATH);
+  doc.fontSize(18).font(FONT_PATH);
   const title = '费 用 报 销 单';
   const titleWidth = doc.widthOfString(title);
   const titleX = (PAGE_WIDTH + BINDING_LINE_WIDTH) / 2 - titleWidth / 2;
-  doc.text(title, titleX, startY + 10);
+  doc.text(title, titleX, startY + 5);
 
   // 绘制标题下划线
-  const underlineY = startY + 35;
+  const underlineY = startY + 27;
   doc.lineWidth(1);
   doc.moveTo(titleX, underlineY);
   doc.lineTo(titleX + titleWidth, underlineY);
   doc.stroke();
 
   // 绘制日期
-  doc.fontSize(14);
+  doc.fontSize(11);
   const dateWidth = doc.widthOfString(data.date);
   const dateX = (PAGE_WIDTH + BINDING_LINE_WIDTH) / 2 - dateWidth / 2;
-  doc.text(data.date, dateX, startY + 42);
+  doc.text(data.date, dateX, startY + 32);
 
   // 绘制右上角信息
-  doc.fontSize(9);
-  const rightX = PAGE_WIDTH - 150;
-  doc.text(`部门：${data.department}`, rightX, startY + 10);
-  doc.text(`页码：${data.pageNumber}`, rightX, startY + 25);
-  doc.text(`金额：${data.totalAmount}元 / ${data.totalAmount}元`, rightX, startY + 40);
+  doc.fontSize(8);
+  const rightX = PAGE_WIDTH - 105;
+  doc.text(`部门：${data.department}`, rightX, startY + 5);
+  doc.text(`页码：${data.pageNumber}`, rightX, startY + 18);
+  doc.text(`金额：${data.totalAmount}元 / ${data.totalAmount}元`, rightX, startY + 31);
 }
 
 /**
@@ -163,24 +163,24 @@ function drawHeader(doc, data, qrBuffer) {
  */
 function drawTable(doc, data) {
   const startX = MARGIN_LEFT + BINDING_LINE_WIDTH;
-  const startY = MARGIN_TOP + 80;
+  const startY = MARGIN_TOP + 60;
   const tableWidth = PAGE_WIDTH - MARGIN_LEFT * 2 - BINDING_LINE_WIDTH;
 
   // 行高
-  const infoRowHeight = 25;
-  const headerRowHeight = 30;
-  const dataRowHeight = 30;
-  const totalRowHeight = 35;
-  const approvalRow1Height = 35;
-  const approvalRow2Height = 40;
+  const infoRowHeight = 22;
+  const headerRowHeight = 25;
+  const dataRowHeight = 25;
+  const totalRowHeight = 30;
+  const approvalRow1Height = 30;
+  const approvalRow2Height = 35;
 
   let currentY = startY;
   let x = startX;
 
   // ===== 第一行：部门和项目信息 =====
-  const col1Width = 80;  // "部门"
-  const col2Width = 180; // "总经办"
-  const col3Width = 100; // "项目名称"
+  const col1Width = 55;  // "部门"
+  const col2Width = 100; // "总经办"
+  const col3Width = 70; // "项目名称"
   const col4Width = tableWidth - col1Width - col2Width - col3Width; // "123"
 
   drawRect(doc, x, currentY, col1Width, infoRowHeight);
@@ -285,7 +285,7 @@ function drawTable(doc, data) {
 async function generateExpenseReceipt(data, outputPath) {
   // 创建 PDF 文档
   const doc = new PDFDocument({
-    size: 'A4',
+    size: 'A5',
     margins: { top: 0, bottom: 0, left: 0, right: 0 }
   });
 

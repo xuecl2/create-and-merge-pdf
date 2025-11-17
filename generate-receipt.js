@@ -6,14 +6,14 @@ const path = require('path');
 // 中文字体路径
 const FONT_PATH = path.join(__dirname, 'fonts/NotoSansSC.otf');
 
-// A4 尺寸 (595.28 x 841.89 points)
+// A5 横向尺寸 (595.28 x 420 points)
 const PAGE_WIDTH = 595.28;
-const PAGE_HEIGHT = 841.89;
+const PAGE_HEIGHT = 420;
 
 // 布局常量
-const MARGIN_LEFT = 50;
-const MARGIN_TOP = 50;
-const BINDING_LINE_WIDTH = 30;
+const MARGIN_LEFT = 40;
+const MARGIN_TOP = 30;
+const BINDING_LINE_WIDTH = 25;
 
 /**
  * 生成二维码图片 Buffer
@@ -100,8 +100,8 @@ function drawBindingLine(doc) {
   doc.lineCap('round');
   doc.dash(3, { space: 3 });
 
-  doc.moveTo(BINDING_LINE_WIDTH, 100);
-  doc.lineTo(BINDING_LINE_WIDTH, PAGE_HEIGHT - 100);
+  doc.moveTo(BINDING_LINE_WIDTH, 60);
+  doc.lineTo(BINDING_LINE_WIDTH, PAGE_HEIGHT - 60);
   doc.stroke();
 
   doc.undash();
@@ -127,28 +127,28 @@ function drawHeader(doc, data, qrBuffer) {
   const startX = MARGIN_LEFT + BINDING_LINE_WIDTH;
   const startY = MARGIN_TOP;
 
-  // 绘制二维码
-  doc.image(qrBuffer, startX, startY, { width: 70, height: 70 });
+  // 绘制二维码（A5 横向优化尺寸）
+  doc.image(qrBuffer, startX, startY, { width: 55, height: 55 });
 
   // 绘制标题
-  doc.fontSize(22).font(FONT_PATH);
+  doc.fontSize(18).font(FONT_PATH);
   const title = '差 旅 报 销 单';
   const titleWidth = doc.widthOfString(title);
   const titleX = (PAGE_WIDTH + BINDING_LINE_WIDTH) / 2 - titleWidth / 2;
-  doc.text(title, titleX, startY + 10);
+  doc.text(title, titleX, startY + 5);
 
   // 绘制标题下划线
-  const underlineY = startY + 35;
+  const underlineY = startY + 28;
   doc.lineWidth(1);
   doc.moveTo(titleX, underlineY);
   doc.lineTo(titleX + titleWidth, underlineY);
   doc.stroke();
 
   // 绘制日期
-  doc.fontSize(14);
+  doc.fontSize(12);
   const dateWidth = doc.widthOfString(data.date);
   const dateX = (PAGE_WIDTH + BINDING_LINE_WIDTH) / 2 - dateWidth / 2;
-  doc.text(data.date, dateX, startY + 42);
+  doc.text(data.date, dateX, startY + 33);
 
   // 绘制右上角信息
   doc.fontSize(9);
@@ -163,24 +163,24 @@ function drawHeader(doc, data, qrBuffer) {
  */
 function drawTable(doc, data) {
   const startX = MARGIN_LEFT + BINDING_LINE_WIDTH;
-  const startY = MARGIN_TOP + 80;
+  const startY = MARGIN_TOP + 60;
   const tableWidth = PAGE_WIDTH - MARGIN_LEFT * 2 - BINDING_LINE_WIDTH;
 
-  // 定义列宽
+  // 定义列宽（A5 横向优化）
   const colWidths = {
-    depDate: 60,        // 出发日期
-    depPlace: 60,       // 出发地点
-    arrDate: 60,        // 到达日期
-    arrPlace: 60,       // 到达地点
-    tool: 45,           // 交通工具
-    transportAmt: 50,   // 交通金额
-    days: 25,           // 天数
-    standard: 47,       // 补贴标准
-    allowanceAmt: 48,   // 补贴金额
-    accommodation: 48,  // 住宿
-    localTransport: 51, // 市内交通
-    otherExpenses: 51,  // 其他费用
-    subtotal: 50,       // 小计
+    depDate: 56,        // 出发日期
+    depPlace: 50,       // 出发地点
+    arrDate: 56,        // 到达日期
+    arrPlace: 50,       // 到达地点
+    tool: 40,           // 交通工具
+    transportAmt: 45,   // 交通金额
+    days: 22,           // 天数
+    standard: 40,       // 补贴标准
+    allowanceAmt: 42,   // 补贴金额
+    accommodation: 42,  // 住宿
+    localTransport: 42, // 市内交通
+    otherExpenses: 42,  // 其他费用
+    subtotal: 45,       // 小计
     receipts: 0         // 单据张数（剩余宽度）
   };
 
@@ -188,13 +188,13 @@ function drawTable(doc, data) {
   const usedWidth = Object.values(colWidths).reduce((sum, w) => sum + w, 0) - colWidths.receipts;
   colWidths.receipts = tableWidth - usedWidth;
 
-  // 行高
-  const infoRowHeight = 25;
-  const headerRow1Height = 25;
-  const headerRow2Height = 25;
-  const dataRowHeight = 25;
-  const summaryRowHeight = 30;
-  const approvalRowHeight = 50;
+  // 行高（A5 横向优化）
+  const infoRowHeight = 20;
+  const headerRow1Height = 20;
+  const headerRow2Height = 20;
+  const dataRowHeight = 20;
+  const summaryRowHeight = 25;
+  const approvalRowHeight = 40;
 
   let currentY = startY;
 
@@ -522,9 +522,9 @@ function drawTable(doc, data) {
  * 生成报销单 PDF
  */
 async function generateReimbursementPDF(data, outputPath) {
-  // 创建 PDF 文档
+  // 创建 PDF 文档（A5 横向）
   const doc = new PDFDocument({
-    size: 'A4',
+    size: [595.28, 420],  // A5 横向
     margins: { top: 0, bottom: 0, left: 0, right: 0 }
   });
 
